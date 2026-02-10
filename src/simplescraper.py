@@ -283,12 +283,14 @@ class Scraper:
         json: bool = True,
         retry_errors: Optional[List[Exception]] = None,
         json_body: Any = None,
+        no_cache: bool = False,
     ) -> Union[Any, str]:
-        req_hash = self._hash_request(url, params, data, json_body)
+        if not no_cache:
+            req_hash = self._hash_request(url, params, data, json_body)
 
-        if req_hash in self.__cached_responses:
-            logger.debug("Serving %s from cache", url)
-            return self.__cached_responses[req_hash]
+            if req_hash in self.__cached_responses:
+                logger.debug("Serving {} from cache", url)
+                return self.__cached_responses[req_hash]
 
         if headers is None:
             headers = (
