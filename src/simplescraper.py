@@ -285,12 +285,11 @@ class Scraper:
         json_body: Any = None,
         no_cache: bool = False,
     ) -> Union[Any, str]:
-        if not no_cache:
-            req_hash = self._hash_request(url, params, data, json_body)
+        req_hash = self._hash_request(url, params, data, json_body)
 
-            if req_hash in self.__cached_responses:
-                logger.debug("Serving {} from cache", url)
-                return self.__cached_responses[req_hash]
+        if req_hash in self.__cached_responses and not no_cache:
+            logger.debug("Serving {} from cache", url)
+            return self.__cached_responses[req_hash]
 
         if headers is None:
             headers = (
@@ -363,6 +362,7 @@ class Scraper:
         json: bool = True,
         retry_errors: Optional[List[Exception]] = None,
         json_body: Any = None,
+        no_cache: bool = False,
     ) -> Union[Any, str]:
         return await self.request(
             "GET",
@@ -372,6 +372,7 @@ class Scraper:
             json=json,
             retry_errors=retry_errors,
             json_body=json_body,
+            no_cache=no_cache,
         )
 
     async def post(
@@ -383,6 +384,7 @@ class Scraper:
         json: bool = True,
         retry_errors: Optional[List[Exception]] = None,
         json_body: Any = None,
+        no_cache: bool = False,
     ) -> Union[Any, str]:
         return await self.request(
             "POST",
@@ -393,4 +395,5 @@ class Scraper:
             json=json,
             retry_errors=retry_errors,
             json_body=json_body,
+            no_cache=no_cache,
         )
