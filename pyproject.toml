@@ -13,7 +13,11 @@ dependencies = [
 ]
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling"][tool.hatch.build]
+include = [
+    "src/*.py",
+]
+
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
