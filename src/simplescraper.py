@@ -21,6 +21,8 @@ import aiohttp.client_exceptions
 from fake_headers import Headers
 from loguru import logger
 
+from helpers.playwright_wrapper import request as playwright_request
+
 
 class ResponseNotOkError(Exception):
     pass
@@ -194,6 +196,8 @@ class Scraper:
     _rate_limiter: RateLimiter
 
     base_url: Optional[str]
+    use_playwright: bool
+    proxy_url: Optional[str]
 
     CACHE_FILE_NAME = "cache.pkl"
 
@@ -204,16 +208,24 @@ class Scraper:
         immediately_stop_statuses: Optional[List[int]] = None,
         base_url: Optional[str] = None,
         user_agent: Optional[str] = None,
+        use_playwright: bool = False,
+        proxy_url: Optional[str] = None,
     ):
         self.base_url = base_url
+
         if user_agent is not None:
             self.__default_headers = {"User-Agent": user_agent}
+        else:
+            self.__default_headers = {}
+
         self._rate_limiter = RateLimiter(limit)
         self.__spoof_headers = spoof_headers
         self.__next_headers = datetime.now(UTC)
         self.__cached_headers = None
         self.__cached_responses = {}
         self.__immediately_stop_statuses = immediately_stop_statuses or []
+        self.use_playwright = use_playwright
+        self.proxy_url = proxy_url
 
     def _get_headers(self, url: str) -> dict:
         if self.__cached_headers is None or datetime.now(UTC) > self.__next_headers:
@@ -292,6 +304,9 @@ class Scraper:
 
         async def do_req():
             try:
+                if self.use_playwright:
+                    return await playwright_request(url)
+
                 async with aiohttp.ClientSession() as session:
                     async with session.request(
                         method,
@@ -300,6 +315,8 @@ class Scraper:
                         headers=headers,
                         data=data,
                         json=json_body,
+                        proxy=self.proxy_url,
+                        timeout=aiohttp.ClientTimeout(total=30),
                     ) as res:
                         if res.status != 200:
                             if res.status in self.__immediately_stop_statuses:
