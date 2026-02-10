@@ -45,7 +45,7 @@ class RateLimit:
     per: DatePart
     rate_limit_per_route: bool
     get_route_path: Optional[Callable[[str], str]]
-    range_req: Tuple[int, int]
+    range_req: Optional[Tuple[int, int]]
     per_multiplier: int
 
     def __init__(
@@ -144,6 +144,8 @@ class RateLimiter:
         if per == DatePart.YEAR:
             return 1.0 / (_max / (3.154e7 * self.settings.per_multiplier))
 
+        return 0.0
+
     def next_call(self, key: str, now: datetime = datetime.now(UTC)) -> datetime:
         if key not in self._last_calls:
             return now
@@ -158,7 +160,7 @@ class RateLimiter:
         key = (
             urllib.parse.urlparse(url).netloc
             if not self.settings.rate_limit_per_route
-            else self.settings.get_route_path(url)
+            else self.settings.get_route_path(url)  # type: ignore
         )
 
         utcnow = datetime.now(UTC)
@@ -176,7 +178,7 @@ class RateLimiter:
             await asyncio.sleep(sleep_time_seconds)
 
         self._last_calls[key] = datetime.now(UTC)
-        return await func()
+        return await func()  # type: ignore
 
 
 class Scraper:
@@ -201,9 +203,11 @@ class Scraper:
         spoof_headers: bool = False,
         immediately_stop_statuses: Optional[List[int]] = None,
         base_url: Optional[str] = None,
+        user_agent: Optional[str] = None,
     ):
         self.base_url = base_url
-        self.__default_headers = {"User-Agent": self._config.user_agent}
+        if user_agent is not None:
+            self.__default_headers = {"User-Agent": user_agent}
         self._rate_limiter = RateLimiter(limit)
         self.__spoof_headers = spoof_headers
         self.__next_headers = datetime.now(UTC)
@@ -301,7 +305,7 @@ class Scraper:
                             if res.status in self.__immediately_stop_statuses:
                                 raise ImmediatelyStopStatusError
                             text = await res.text()
-                            await backoff.backoff(res.url, text or res.status)
+                            await backoff.backoff(str(res.url), text or res.status)
                             return await do_req()
                         res_val = await res.json() if json else await res.text()
                         if res_val is None:
@@ -330,7 +334,7 @@ class Scraper:
                     return await do_req()
                 raise
 
-        return await self._rate_limiter.request(url, do_req)
+        return await self._rate_limiter.request(url, do_req)  # type: ignore
 
     async def get(
         self,
