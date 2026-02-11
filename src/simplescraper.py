@@ -230,7 +230,7 @@ class Scraper:
         self.use_proxy = use_proxy
         self.proxy_list = []
 
-        if not os.path.exists("proxies_list.txt"):
+        if self.use_proxy and not os.path.exists("proxies_list.txt"):
             logger.info("No proxies_list.txt found, loading these may take a moment...")
             # Imported here because it eagerly loads proxies on import
             from multiproxies import proxies
