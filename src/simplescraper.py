@@ -237,7 +237,7 @@ class Scraper:
 
             for ip, port in zip(proxies.ips, proxies.ports):
                 self.proxy_list.append(f"http://{ip}:{port}")
-        else:
+        elif self.use_proxy:
             with open("proxies_list.txt", "r") as f:
                 for line in f:
                     self.proxy_list.append(f"http://{line.strip()}")
