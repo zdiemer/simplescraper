@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import random
 import urllib.parse
 from datetime import UTC, datetime, timedelta
@@ -197,7 +198,8 @@ class Scraper:
 
     base_url: Optional[str]
     use_playwright: bool
-    proxy_url: Optional[str]
+    use_proxy: bool
+    proxy_list: List[str]
 
     CACHE_FILE_NAME = "cache.pkl"
 
@@ -209,7 +211,7 @@ class Scraper:
         base_url: Optional[str] = None,
         user_agent: Optional[str] = None,
         use_playwright: bool = False,
-        proxy_url: Optional[str] = None,
+        use_proxy: bool = False,
     ):
         self.base_url = base_url
 
@@ -225,7 +227,20 @@ class Scraper:
         self.__cached_responses = {}
         self.__immediately_stop_statuses = immediately_stop_statuses or []
         self.use_playwright = use_playwright
-        self.proxy_url = proxy_url
+        self.use_proxy = use_proxy
+        self.proxy_list = []
+
+        if not os.path.exists("proxies_list.txt"):
+            logger.info("No proxies_list.txt found, loading these may take a moment...")
+            # Imported here because it eagerly loads proxies on import
+            from multiproxies import proxies
+
+            for ip, port in zip(proxies.ips, proxies.ports):
+                self.proxy_list.append(f"http://{ip}:{port}")
+        else:
+            with open("proxies_list.txt", "r") as f:
+                for line in f:
+                    self.proxy_list.append(f"http://{line.strip()}")
 
     def _get_headers(self, url: str) -> dict:
         if self.__cached_headers is None or datetime.now(UTC) > self.__next_headers:
@@ -306,7 +321,12 @@ class Scraper:
         async def do_req():
             try:
                 if self.use_playwright:
-                    return await playwright_request(url)
+                    return await playwright_request(
+                        url,
+                        random.choice(self.proxy_list)
+                        if self.use_proxy and self.proxy_list
+                        else None,
+                    )
 
                 async with aiohttp.ClientSession() as session:
                     async with session.request(
@@ -316,7 +336,9 @@ class Scraper:
                         headers=headers,
                         data=data,
                         json=json_body,
-                        proxy=self.proxy_url,
+                        proxy=random.choice(self.proxy_list)
+                        if self.use_proxy and self.proxy_list
+                        else None,
                         timeout=aiohttp.ClientTimeout(total=30),
                     ) as res:
                         if res.status != 200:
