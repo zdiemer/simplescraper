@@ -1,8 +1,23 @@
-FROM alpine:3.14
+FROM python:3.12-slim-trixie
 
+# The installer requires curl (and certificates) to download the release archive
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates
+
+# Download the latest installer
+ADD https://astral.sh/uv/install.sh /uv-installer.sh
+
+# Run the installer then remove it
+RUN sh /uv-installer.sh && rm /uv-installer.sh
+
+# Ensure the installed binary is on the `PATH`
+ENV PATH="/root/.local/bin/:$PATH"
+
+COPY . .
+
+# Set up uv environment
 RUN uv sync
-RUN playwright install --with-deps
-RUN . .venv/bin/activate && \
-    playwright install && \
-    apt-get update && apt-get install -y sudo && \
-    sudo apt-get install -y libevent-2.1-7t64 libgstreamer-plugins-bad1.0-0 libflite1 libavif16 gstreamer1.0-libav xvfb
+ENV PATH="/.venv/bin:$PATH"
+
+# Install Playwright and XVFB for browser based scraping
+RUN playwright install --with-deps && \
+    apt-get install -y xvfb
